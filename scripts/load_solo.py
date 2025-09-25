@@ -5,7 +5,7 @@ from psycopg2.extras import execute_values
 from dotenv import load_dotenv
 
 # === LOAD ENV VARIABLES ===
-load_dotenv(encoding='utf-8')
+load_dotenv()
 
 BASE_DIR = r"C:\Users\Aura De La Garza G\Projects\GenAI-Music\bach_midis_solo_all"
 
@@ -51,6 +51,13 @@ CREATE TABLE IF NOT EXISTS movements (
 """)
 conn.commit()
 
+# === Instrument folder mapping to canonical instrument names ===
+INSTRUMENT_MAP = {
+    "Partita for Solo Flute": "Flute",
+    "Sonatas and Partitas for Solo Violin": "Violin",
+    "Suites for Solo Cello": "Cello"
+}
+
 def get_instrument_id(name):
     cur.execute("SELECT instrument_id FROM instruments WHERE instrument_name=%s", (name,))
     row = cur.fetchone()
@@ -65,17 +72,20 @@ for instrument_folder in os.listdir(BASE_DIR):
     if not os.path.isdir(instrument_path):
         continue
 
-    instrument_id = get_instrument_id(instrument_folder)
+    # map to canonical instrument name
+    instrument_name = INSTRUMENT_MAP.get(instrument_folder, instrument_folder)
+    instrument_id = get_instrument_id(instrument_name)
 
     for work_folder in os.listdir(instrument_path):
         work_path = os.path.join(instrument_path, work_folder)
         if not os.path.isdir(work_path):
             continue
 
-        # extract BWV, title, key
-        m = re.match(r"(BWV\d+)\s+(.*)\s+in\s+(.*)", work_folder)
+        # extract BWV, title, key (handles flute "A minor for Solo Flute")
+        m = re.match(r"(BWV\d+)\s+(.*?)(?:\s+in\s+(.*))?$", work_folder)
         if m:
             bwv, title, key = m.groups()
+            key = key or None
         else:
             parts = work_folder.split(" ",1)
             bwv = parts[0] if parts else work_folder
