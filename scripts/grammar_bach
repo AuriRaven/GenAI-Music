@@ -1,0 +1,172 @@
+from music21 import converter, note, key, chord, stream, instrument, tempo, metadata
+
+
+def get_key_harmony_named(music_key):
+    degree_names_major = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°']
+    degree_names_minor = ['i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII']
+    degree_names = degree_names_major if music_key.mode == 'major' else degree_names_minor
+
+    scale_pitches = music_key.getScale().getPitches()
+    harmony = {}
+    for i, name in enumerate(degree_names):
+        root = scale_pitches[i]
+        third = scale_pitches[(i + 2) % 7]
+        fifth = scale_pitches[(i + 4) % 7]
+        harmony[name] = chord.Chord([root, third, fifth])
+    return harmony
+
+def chord_distance_no_octave(chord_candidate, note_group):
+    chord_set = set(p.name for p in chord_candidate.pitches)
+    input_set = set(n.name for n in note_group if isinstance(n, note.Note))
+    return len(chord_set.symmetric_difference(input_set))
+
+def get_common_modulation_keys(music_key):
+    tonic = music_key.tonic
+    fifth_up = key.Key(tonic.transpose(7))
+    fifth_down = key.Key(tonic.transpose(-7))
+    relative = music_key.relative
+    return [music_key, fifth_up, fifth_down, relative]
+
+def detect_chord_with_modulation(note_group, base_key):
+    candidate_keys = get_common_modulation_keys(base_key)
+    best_match = None
+    best_key = None
+    best_degree = None
+    min_distance = float('inf')
+
+    for cand_key in candidate_keys:
+        harmony = get_key_harmony_named(cand_key)
+        for degree_name, chord_obj in harmony.items():
+            dist = chord_distance_no_octave(chord_obj, note_group)
+            if dist < min_distance:
+                min_distance = dist
+                best_match = chord_obj
+                best_key = cand_key
+                best_degree = degree_name
+
+    return {
+        "key": best_key,
+        "chord": best_match,
+        "degree": best_degree,
+        "distance": min_distance
+    }
+
+# Cargar el archivo MIDI
+cello_path = r'bach_midis_solo_all\Suites for Solo Cello\BWV1007 Suite No. 1 in G major\1 Prelude.mid'
+
+cello_suite = converter.parse(cello_path)
+part = cello_suite.parts[0]
+
+# Detectar tonalidad automáticamente
+current_key = part.analyze('key')
+print(f"Tonalidad detectada: {current_key}")
+
+# Procesar los compases
+for measure in part.getElementsByClass('Measure'):
+    notes_in_measure = [n for n in measure.notes if isinstance(n, note.Note)]
+
+    if len(notes_in_measure) >= 3:
+        result = detect_chord_with_modulation(notes_in_measure, current_key)
+        nombre = result['chord'].pitchedCommonName if result['chord'] else "?"
+        print(f"Compás {measure.number}: {result['degree']} en {result['key'].tonic.name} {result['key'].mode} → {nombre}")
+
+
+from music21 import converter, note, chord, stream, instrument, tempo, metadata
+
+# Cargar la partitura original
+cello_suite = converter.parse(cello_path)
+part = cello_suite.parts[0]
+
+# Detectar tonalidad general
+base_key = part.analyze('key')
+print(f"Tonalidad detectada: {base_key}")
+
+# Crear dos nuevas partes: Cello y Piano
+cello_part = stream.Part()
+cello_part.insert(0, instrument.Violoncello())
+for n in part.flat.notesAndRests:
+    cello_part.append(n)
+
+piano_part = stream.Part()
+piano_part.insert(0, instrument.Piano())
+
+# Funciones auxiliares (las mismas que ya definimos)
+def get_key_harmony_named(music_key):
+    degree_names_major = ['I', 'ii', 'iii', 'IV', 'V', 'vi', 'vii°']
+    degree_names_minor = ['i', 'ii°', 'III', 'iv', 'v', 'VI', 'VII']
+    degree_names = degree_names_major if music_key.mode == 'major' else degree_names_minor
+    scale_pitches = music_key.getScale().getPitches()
+    harmony = {}
+    for i, name in enumerate(degree_names):
+        root = scale_pitches[i]
+        third = scale_pitches[(i + 2) % 7]
+        fifth = scale_pitches[(i + 4) % 7]
+        harmony[name] = chord.Chord([root, third, fifth])
+    return harmony
+
+def chord_distance_no_octave(chord_candidate, note_group):
+    chord_set = set(p.name for p in chord_candidate.pitches)
+    input_set = set(n.name for n in note_group if isinstance(n, note.Note))
+    return len(chord_set.symmetric_difference(input_set))
+
+def get_common_modulation_keys(music_key):
+    tonic = music_key.tonic
+    fifth_up = key.Key(tonic.transpose(7))
+    fifth_down = key.Key(tonic.transpose(-7))
+    relative = music_key.relative
+    return [music_key, fifth_up, fifth_down, relative]
+
+def detect_chord_with_modulation(note_group, base_key):
+    candidate_keys = get_common_modulation_keys(base_key)
+    best_match = None
+    best_key = None
+    best_degree = None
+    min_distance = float('inf')
+
+    for cand_key in candidate_keys:
+        harmony = get_key_harmony_named(cand_key)
+        for degree_name, chord_obj in harmony.items():
+            dist = chord_distance_no_octave(chord_obj, note_group)
+            if dist < min_distance:
+                min_distance = dist
+                best_match = chord_obj
+                best_key = cand_key
+                best_degree = degree_name
+
+    return {
+        "key": best_key,
+        "chord": best_match,
+        "degree": best_degree,
+        "distance": min_distance
+    }
+
+# Generar acordes por compás
+for measure in part.getElementsByClass('Measure'):
+    notes_in_measure = [n for n in measure.notes if isinstance(n, note.Note)]
+    
+    if len(notes_in_measure) >= 3:
+        result = detect_chord_with_modulation(notes_in_measure, base_key)
+        harmony_chord = result['chord']
+        if harmony_chord:
+            harmony_chord.duration = measure.duration
+            harmony_chord.stemDirection = 'down'
+            harmony_chord.addLyric(result['degree'])
+            piano_part.append(harmony_chord)
+    else:
+        r = note.Rest()
+        r.duration = measure.duration
+        piano_part.append(r)
+
+# Combinar las partes en una partitura
+full_score = stream.Score()
+full_score.insert(0, metadata.Metadata())
+full_score.metadata.title = "Cello Suite con Acompañamiento"
+full_score.insert(0, tempo.MetronomeMark(number=60))  # ajustar si es necesario
+full_score.append(cello_part)
+full_score.append(piano_part)
+
+# Exportar a MIDI y MusicXML (para abrir en Sibelius)
+full_score.write('midi', fp='suite_cello_con_acordes.mid')
+full_score.write('musicxml', fp='suite_cello_con_acordes.xml')
+
+print("✅ Archivos generados: MIDI y MusicXML")
