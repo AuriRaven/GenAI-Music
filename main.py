@@ -48,7 +48,7 @@ def main() -> None:
     print(f"{'='*60}")
 
     # Add piano accompaniment to all MusicXML files
-    #add_accompaniment_to_all_xml(DEST_ROOT)
+    add_accompaniment_to_all_xml(DEST_ROOT)
 
     # Transform Accompaniment XML files into DataFrames for training set
     df = process_all_accomp_files("./data", concat=True)
