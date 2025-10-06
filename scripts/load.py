@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS movements (
     work_id INT REFERENCES works(work_id),
     movement_number INT,
     movement_name TEXT NOT NULL,
-    midi_file_path TEXT NOT NULL
+    xml_file_path TEXT NOT NULL
 );
 """)
 conn.commit()
@@ -139,19 +139,15 @@ for work_folder in os.listdir(BASE_DIR):
 
     print(f"Processing work: {title} (instrument -> {instrument_name}, key -> {key})")
 
-    midi_files = [f for f in os.listdir(work_path) if f.lower().endswith(".mid")]
-    midi_files.sort()
-    for idx, midi in enumerate(midi_files, start=1):
-        movement_name = os.path.splitext(midi)[0]
-        midi_path = os.path.join(work_path, midi)
+    # Changed: Look for XML files instead of MIDI files
+    xml_files = [f for f in os.listdir(work_path) if f.lower().endswith((".xml", ".musicxml", ".mxl"))]
+    xml_files.sort()
+    for idx, xml in enumerate(xml_files, start=1):
+        movement_name = os.path.splitext(xml)[0]
+        xml_path = os.path.join(work_path, xml)
         cur.execute("""
-            INSERT INTO movements (work_id,movement_number,movement_name,midi_file_path)
+            INSERT INTO movements (work_id,movement_number,movement_name,xml_file_path)
             VALUES (%s,%s,%s,%s)
-        """, (work_id, idx, movement_name, midi_path))
+        """, (work_id, idx, movement_name, xml_path))
 
-    print(f"  - inserted {len(midi_files)} movements for work_id={work_id}")
-
-conn.commit()
-cur.close()
-conn.close()
-print("Database filled successfully ✅")
+    print(f"  - inserted {len(xml_files)} movements for work_id={work_id}")

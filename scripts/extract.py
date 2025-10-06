@@ -4,6 +4,15 @@ import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from typing import Dict, List, Optional, Tuple
+import tempfile
+
+# Import music21 for MIDI to MusicXML conversion
+try:
+    from music21 import converter
+    MUSIC21_AVAILABLE = True
+except ImportError:
+    MUSIC21_AVAILABLE = False
+    print("WARNING: music21 not installed. Install it with: pip install music21")
 
 BASE_URL: str = "http://www.jsbach.net/midi/"
 DEST_ROOT: str = "data"  # Data directory in current path
@@ -211,29 +220,67 @@ def extract_movement_info(filename: str) -> str:
     return name.replace('_', ' ').replace('-', ' ').strip().title()
 
 
-def download_midi_file(url: str, dest_path: str, timeout: int = 10) -> bool:
+def convert_midi_to_musicxml(midi_data: bytes, output_path: str) -> bool:
     """
-    Download a MIDI file from a URL and save it to the specified path.
+    Convert MIDI data to MusicXML format using music21.
+    
+    Args:
+        midi_data: The raw MIDI file data as bytes
+        output_path: The path where the MusicXML file should be saved
+        
+    Returns:
+        True if conversion was successful, False otherwise
+    """
+    if not MUSIC21_AVAILABLE:
+        print("      ✗ music21 library not available for conversion")
+        return False
+    
+    try:
+        # Write MIDI data to a temporary file
+        with tempfile.NamedTemporaryFile(suffix='.mid', delete=False) as temp_midi:
+            temp_midi.write(midi_data)
+            temp_midi_path = temp_midi.name
+        
+        # Parse the MIDI file
+        score = converter.parse(temp_midi_path)
+        
+        # Write as MusicXML
+        score.write('musicxml', fp=output_path)
+        
+        # Clean up temporary file
+        os.unlink(temp_midi_path)
+        
+        return True
+        
+    except Exception as e:
+        print(f"      ✗ Error converting MIDI to MusicXML: {e}")
+        # Clean up temp file if it exists
+        try:
+            if 'temp_midi_path' in locals():
+                os.unlink(temp_midi_path)
+        except:
+            pass
+        return False
+
+
+def download_and_convert_to_xml(url: str, dest_path: str, timeout: int = 10) -> bool:
+    """
+    Download a MIDI file from a URL, convert it to MusicXML, and save it.
     
     Args:
         url: The URL of the MIDI file to download
-        dest_path: The local filesystem path where the file should be saved
+        dest_path: The local filesystem path where the XML file should be saved
         timeout: Request timeout in seconds (default: 10)
         
     Returns:
-        True if download was successful, False otherwise
-        
-    Raises:
-        Does not raise exceptions; returns False on any error
+        True if download and conversion were successful, False otherwise
     """
     try:
         response = requests.get(url, timeout=timeout)
         response.raise_for_status()
         
-        with open(dest_path, 'wb') as f:
-            f.write(response.content)
-        
-        return True
+        # Convert MIDI data to MusicXML
+        return convert_midi_to_musicxml(response.content, dest_path)
         
     except requests.RequestException as e:
         print(f"      ✗ Error downloading from {url}: {e}")
@@ -358,10 +405,10 @@ def parse_midi_links(soup: BeautifulSoup, page_url: str) -> Dict[str, List[Dict[
 
 def process_instrument_page(page_url: str, instrument: str, dest_root: str) -> None:
     """
-    Process a single instrument's MIDI page, downloading and organizing all files.
+    Process a single instrument's MIDI page, downloading and converting all files to MusicXML.
     
-    Downloads all MIDI files for works by the specified instrument, organizing them
-    into a directory structure: data/Work_Title_BWV####/movement_files.mid
+    Downloads all MIDI files for works by the specified instrument, converts them to MusicXML,
+    and organizes them into a directory structure: data/Work_Title_BWV####/movement_files.xml
     
     Args:
         page_url: The URL of the instrument's MIDI page
@@ -371,6 +418,11 @@ def process_instrument_page(page_url: str, instrument: str, dest_root: str) -> N
     Returns:
         None
     """
+    if not MUSIC21_AVAILABLE:
+        print("\n⚠ ERROR: music21 library is required for MIDI to MusicXML conversion")
+        print("Install it with: pip install music21")
+        return
+    
     print(f"\n{'='*60}")
     print(f"Processing {instrument} solos from {page_url}")
     print(f"{'='*60}")
@@ -412,8 +464,11 @@ def process_instrument_page(page_url: str, instrument: str, dest_root: str) -> N
                 new_filename = extract_movement_info(original_filename)
                 new_filename = clean_name(new_filename)
             
-            if not new_filename.lower().endswith('.mid'):
-                new_filename += '.mid'
+            # Change extension to .xml (or .musicxml)
+            if new_filename.lower().endswith('.mid'):
+                new_filename = new_filename[:-4] + '.xml'
+            elif not new_filename.lower().endswith('.xml'):
+                new_filename += '.xml'
             
             dest_path = os.path.join(work_dir, new_filename)
             
@@ -422,9 +477,9 @@ def process_instrument_page(page_url: str, instrument: str, dest_root: str) -> N
                 print(f"   ✓ {new_filename} (already exists)")
                 continue
             
-            # Download the MIDI file
-            print(f"   ⬇ Downloading: {new_filename}")
-            success = download_midi_file(midi_url, dest_path)
+            # Download and convert the MIDI file to MusicXML
+            print(f"   ⬇ Downloading and converting: {new_filename}")
+            success = download_and_convert_to_xml(midi_url, dest_path)
             
             if success:
                 print(f"   ✓ Saved: {new_filename}")
