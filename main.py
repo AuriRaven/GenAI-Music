@@ -61,26 +61,26 @@ def main() -> None:
     model, metrics = train_random_forest(df, target_col="chord_name")
 
     # Print metrics for Random Forest
-    print("=== TRAINING METRICS ===")
+    print("===RANDOM FOREST TRAINING METRICS ===")
     print(f"Accuracy: {metrics['train_accuracy']:.4f}")
     print(f"Precision: {metrics['train_precision']:.4f}")
     print(f"Recall: {metrics['train_recall']:.4f}")
     print(f"F1-score: {metrics['train_f1']:.4f}")
 
-    print("\n=== VALIDATION METRICS ===")
+    print("\n=== RANDOM FOREST VALIDATION METRICS ===")
     print(f"Accuracy: {metrics['val_accuracy']:.4f}")
     print(f"Precision: {metrics['val_precision']:.4f}")
     print(f"Recall: {metrics['val_recall']:.4f}")
     print(f"F1-score: {metrics['val_f1']:.4f}")
 
-    print("\n=== CLASSIFICATION REPORT ===")
+    print("\n=== RANDOM FOREST CLASSIFICATION REPORT ===")
     print(metrics['classification_report'])
 
     # Train Neural Network
     model, metrics, encoder = train_nn(df, target_col="chord_name", prev_chords=True, epochs=50)
 
     # Print metrics for Neural Network
-    print("=== TRAINING RESULTS ===")
+    print("=== NEURAL NETWORK TRAINING RESULTS ===")
     print(f"Train Accuracy: {metrics['train_accuracy']:.4f}")
     print(f"Validation Accuracy: {metrics['val_accuracy']:.4f}")
 
