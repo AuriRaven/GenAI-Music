@@ -90,6 +90,7 @@ def main() -> None:
     conn.close()
     print("Database filled successfully ✅")
 
+    # Open a few XML files in MuseScore for inspection
     for xml_file in xml_files:
         print(f"Opening {xml_file} in MuseScore...")
         open_in_musescore(xml_file)
