@@ -12,10 +12,10 @@ from typing import Dict
 BASE_URL: str = "http://www.jsbach.net/midi/"
 DEST_ROOT: str = "data"  # Data directory in current path
 xml_files = [
-    r"C:\Users\Aura De La Garza G\Projects\GenAI-Music\data\Suite No. 1 in G major BWV1007\1 Prelude Accomp Accomp.xml",
-    r"C:\Users\Aura De La Garza G\Projects\GenAI-Music\data\Suite No. 5 in C minor BWV1011\1 Prelude Accomp Accomp.xml",
-    r"C:\Users\Aura De La Garza G\Projects\GenAI-Music\data\Partita in A minor BWV1013\1 Allemande Accomp Accomp.xml",
-    r"C:\Users\Aura De La Garza G\Projects\GenAI-Music\data\Partita No. 3 in E major BWV1006\3 Gavotte en Rondeau Accomp Accomp.xml"
+    r"C:\Users\Aura De La Garza G\Projects\GenAI-Music\data\Suite No. 1 in G major BWV1007\1 Prelude Accomp.xml",
+    r"C:\Users\Aura De La Garza G\Projects\GenAI-Music\data\Suite No. 5 in C minor BWV1011\1 Prelude Accomp.xml",
+    r"C:\Users\Aura De La Garza G\Projects\GenAI-Music\data\Partita in A minor BWV1013\1 Allemande Accomp.xml",
+    r"C:\Users\Aura De La Garza G\Projects\GenAI-Music\data\Partita No. 3 in E major BWV1006\3 Gavotte en Rondeau Accomp.xml"
     ]
 
 # Target instruments
@@ -29,10 +29,19 @@ def main() -> None:
     """
     Main entry point for the Bach solo works MIDI extractor.
     
-    Downloads and organizes MIDI files for Bach's solo works for cello, violin,
+    * Downloads and organizes MIDI files for Bach's solo works for cello, violin,
     and flute from jsbach.net, creating a structured directory hierarchy within
     a 'data' folder in the current directory.
+    * Converts MIDI files to MusicXML format using MuseScore.
+    * Adds piano accompaniment to the MusicXML files.
+    * Opens a few of the generated MusicXML accompaniment files in MuseScore for inspection.
+    * Transforms the Accompaniment XML files into a DataFrame suitable for training.
+    * Trains both a Random Forest and a Neural Network model to predict chord names
+    based on the musical context.
+    * Outputs training metrics for both models.
+    * Loads the processed data into a SQLite database.
     """
+    
     # Create the data directory if it doesn't exist
     os.makedirs(DEST_ROOT, exist_ok=True)
     print(f"📂 Using data directory: {os.path.abspath(DEST_ROOT)}")
@@ -49,6 +58,12 @@ def main() -> None:
 
     # Add piano accompaniment to all MusicXML files
     add_accompaniment_to_all_xml(DEST_ROOT)
+
+    # Open a few XML files in MuseScore for inspection
+    for xml_file in xml_files:
+        print(f"Opening {xml_file} in MuseScore...")
+        open_in_musescore(xml_file)
+    print("✅ XML files Opened in MuseScore!")
 
     # Transform Accompaniment XML files into DataFrames for training set
     df = process_all_accomp_files("./data", concat=True)
@@ -89,12 +104,6 @@ def main() -> None:
     cur.close()
     conn.close()
     print("Database filled successfully ✅")
-
-    # Open a few XML files in MuseScore for inspection
-    for xml_file in xml_files:
-        print(f"Opening {xml_file} in MuseScore...")
-        open_in_musescore(xml_file)
-    print("✅ XML files Opened in MuseScore!")
     print("All done! 🎵")
 
 if __name__ == "__main__":
